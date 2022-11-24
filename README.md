@@ -1,4 +1,4 @@
-# Os_project
+# Os_project Deadline: 11/12/2022 23:59
 
 
 <h3>Goal of this programming project is to implement analternative Linux shell in C</h3>
