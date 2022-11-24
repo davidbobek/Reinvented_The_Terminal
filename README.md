@@ -34,6 +34,6 @@ f this modifier is used at the end of a command,imcshwill redirect the output as
 –Example 2: globalusage > usage.txt → Executes the command globalusage and writes the output to the fileusage.txt. <br>
 -Hint:Use the dup2 system call (unistd.h) to redirect standard output (stdout) to a file de-scriptor <br>
 
-<h3quit</h3>
+<h3>quit</h3>
 
 quits the shell. If there are any running processes, the following question will be prompted to the user <br>: The following processes are running, are you sure you want to quit?<br> [Y/n]. A list of all currently running processes will follow. If the user enters Y, the shell will quit and all running processes will be terminated.
