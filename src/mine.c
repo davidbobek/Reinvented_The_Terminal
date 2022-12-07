@@ -46,21 +46,24 @@ int quit()
     // if yes, then quit
     // if no, then continue
     printf("Following processes are running:\n");
-    system("ps");
-    printf("Are you sure you want to quit? (y/n)\n");
+    // execvp("ps");
+    printf("Do you want to quit? (y/n)\n");
     char answer;
     scanf("%c", &answer);
-    if (answer == 'y' || answer == 'Y')
+    if (answer == 'y')
     {
-        // kill all the running processes
-        system("killall -9");
+        printf("Quitting\n");
+        // kill all the processes
+        
         exit(0);
     }
     else
     {
+        printf("Continuing\n");
         return 1;
     }
 }
+
 
 int globalUsage()
 {
@@ -68,6 +71,7 @@ int globalUsage()
     printf("%s\n", text);
     return 1;
 }
+
 
 int executeFunction(char *tokens[])
 {
@@ -93,12 +97,12 @@ int executeFunction(char *tokens[])
     else
     {
         // parent process
-        while (wait(&status) != pid)
-            ;
+        while (wait(&status) != pid);
         printf("Child process with id %d terminated\n", pid);
     }
     return 1;
 }
+
 
 int export(char *tokens[])
 {
@@ -108,56 +112,75 @@ int export(char *tokens[])
     // close the file
     // return 1
     FILE *pFile = NULL;
-    if (strcmp(tokens[0], "globalusage") == 0)
-    {
-        pFile = fopen(tokens[2], "w");
-        if (pFile == NULL)
+    int idx = 0;
+    // count the number of tokens
+    while (tokens[idx] != NULL){
+        idx++;
+    }
+    // open the file
+    pFile = fopen(tokens[idx - 1], "a");
+    // check if the file was opened
+    if (pFile == NULL)
         {
             printf("Error opening file\n");
             return -1;
         }
-        fprintf(pFile, "IMCSH Version 1.1 created by Bertold Vinze, David Bobek and Dinu Scripnic");
+    // if the command is globalusage, then write the text to the file
+    if (strcmp(tokens[0], "globalusage") == 0)
+    {
+        fprintf(pFile, "IMCSH Version 1.1 created by Bertold Vinze, David Bobek and Dinu Scripnic\n");
         fclose(pFile);
         return 1;
     }
     else if (strcmp(tokens[0], "exec") == 0)
     {
-        // iterate through all the tokens till > is found
         // create a new array with the tokens before >
-        // execute the command
-        // write the output to the file
-        // close the file
-        // return 1
-        char *newTokens[LIMIT];
+        char *newTokens[idx];
         int i = 0;
+        // copy the tokens to the new array
         while (strcmp(tokens[i], ">") != 0)
         {
             newTokens[i] = tokens[i];
             i++;
         }
+        newTokens[i] = NULL;  
+        // fork a child process
         pid_t pid;
         int status;
         pid = fork();
+        // print the output of the command to the file
         if (pid == 0)
         {
-            // child process
-            pFile = fopen(tokens[i + 1], "w");
-            if (pFile == NULL)
-            {
-                printf("Error opening file\n");
-                return -1;
-            }
+            // redirect the output to the file
             dup2(fileno(pFile), 1);
-            if (execvp(newTokens[0], newTokens) < 0)
+            if (execvp(newTokens[1], newTokens+1) < 0)
             {
                 printf("Error executing command\n");
                 return -1;
             }
         }
+        else if (pid < 0)
+        {
+            // error forking
+            printf("Error forking\n");
+            return -1;
+        }
+        else
+        {
+            // parent process
+            while (wait(&status) != pid);
+            printf("Child process with id %d terminated\n", pid);
+        }
 
-        return 0;
     }
 }
+
+
+int runBackground(char *tokens[]){
+    printf("Running in background\n");
+    return 1;
+}
+
 
 int commandHandler(char *tokens[])
 {
@@ -173,15 +196,13 @@ int commandHandler(char *tokens[])
     {
         if (strcmp(tokens[i], ">") == 0)
         {
-            printf("Found >\n");
-            // export(tokens);
-            break;
+            export(tokens);
+            return 1;
         }
         if (strcmp(tokens[i], "&") == 0)
         {
-            printf("Found &\n");
-            // run in background
-            break;
+            runBackground(tokens);
+            return 1;
         }
     }
     // check if the command is cd
