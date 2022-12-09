@@ -12,6 +12,7 @@
 #define MAXLINE 1024
 #define TRUE 1
 
+
 int changeDirectory(char *args[])
 {
     // If we write no path (only 'cd'), then go to the home directory
@@ -38,51 +39,111 @@ int changeDirectory(char *args[])
     }
 }
 
+
 int quit()
 {
-    // if any poccesses are running, then
-    // print all the running processes
-    // ask the user if he wants to quit
-    // if yes, then quit
-    // if no, then continue
-    printf("Following processes are running:\n");
-    // execvp("ps");
-    printf("Do you want to quit? (y/n)\n");
+    // print the running processes
+    // ask the user if he wants to kill them
+    // if yes, kill them
+    // if no, do nothing
+    // exit the program
+    printf("Do you want to kill the running processes? (y/n)\n");
     char answer;
     scanf("%c", &answer);
     if (answer == 'y')
     {
-        printf("Quitting\n");
-        // kill all the processes
-        
         exit(0);
     }
-    else
-    {
-        printf("Continuing\n");
+    else{
         return 1;
     }
 }
 
 
-int globalUsage()
+int globalUsage(char *tokens[])
 {
-    char text[] = "IMCSH Version 1.1 created by Bertold Vinze, David Bobek and Dinu Scripnic";
-    printf("%s\n", text);
-    return 1;
+    int idx = 0;
+    // count the number of tokens
+    while (tokens[idx] != NULL){
+        idx++;
+    }
+    // if the length of the tokens is 1, then print the text to the screen
+    if (idx == 1)
+    {
+        printf("IMCSH Version 1.1 created by Bertold Vinze, David Bobek and Dinu Scripnic\n");
+        return 1;
+    }
+    // check if token 2 is >
+    else if (strcmp(tokens[1], ">") == 0)
+    {
+        FILE *pFile = NULL;
+        // open the file
+        pFile = fopen(tokens[2], "a");
+        // check if the file was opened
+        if (pFile == NULL)
+        {
+            printf("Something went wrong\n");
+            return -1;
+        }
+        // if the command is globalusage, then write the text to the file
+        fprintf(pFile, "IMCSH Version 1.1 created by Bertold Vinze, David Bobek and Dinu Scripnic\n");
+        fclose(pFile);
+        return 1;
+    }
+    else
+    {
+        printf("Something went wrong\n");
+        return -1;
+    }
+    
 }
 
 
 int executeFunction(char *tokens[])
 {
+    int idx = 0;
+    FILE *pFile = NULL;
+    int background = 0;
+    // count the number of tokens
+    while (tokens[idx] != NULL){
+        idx++;
+    }
+    printf("idx = %d\n", idx);
+    if (strcmp(tokens[idx - 1], "&") == 0)
+    {
+        background = 1;
+        idx--;
+    }
+    printf("idx = %d\n", idx);
+    char *newTokens[idx];
+    int i = 0;
+    // copy the tokens to the new array
+    for (i = 0; i < idx; i++)
+    {
+        newTokens[i] = tokens[i];
+        if (strcmp(tokens[i], ">") == 0)
+        {
+            pFile = fopen(tokens[i + 1], "a");
+            if (pFile == NULL)
+            {
+                printf("Something went wrong\n");
+                return -1;
+            }
+            break;
+        }
+    }
+    newTokens[i] = NULL;
     // fork a child process
     pid_t pid;
     int status;
     pid = fork();
     if (pid == 0)
-    {
-        //
-        if (execvp(tokens[1], tokens + 1) < 0)
+    {   
+        if (pFile != NULL)
+        {
+            dup2(fileno(pFile), 1);
+        }
+        if (execvp(newTokens[1], newTokens+1) < 0)
         {
             printf("Error executing command\n");
             return -1;
@@ -96,116 +157,20 @@ int executeFunction(char *tokens[])
     }
     else
     {
-        // parent process
-        while (wait(&status) != pid);
-        printf("Child process with id %d terminated\n", pid);
-    }
-    return 1;
-}
-
-
-int export(char *tokens[])
-{
-    // find the filename in tokens
-    // open the file
-    // write the output of the command to the file
-    // close the file
-    // return 1
-    FILE *pFile = NULL;
-    int idx = 0;
-    // count the number of tokens
-    while (tokens[idx] != NULL){
-        idx++;
-    }
-    // open the file
-    pFile = fopen(tokens[idx - 1], "a");
-    // check if the file was opened
-    if (pFile == NULL)
-        {
-            printf("Error opening file\n");
-            return -1;
-        }
-    // if the command is globalusage, then write the text to the file
-    if (strcmp(tokens[0], "globalusage") == 0)
-    {
-        fprintf(pFile, "IMCSH Version 1.1 created by Bertold Vinze, David Bobek and Dinu Scripnic\n");
-        fclose(pFile);
-        return 1;
-    }
-    else if (strcmp(tokens[0], "exec") == 0)
-    {
-        // create a new array with the tokens before >
-        char *newTokens[idx];
-        int i = 0;
-        // copy the tokens to the new array
-        while (strcmp(tokens[i], ">") != 0)
-        {
-            newTokens[i] = tokens[i];
-            i++;
-        }
-        newTokens[i] = NULL;  
-        // fork a child process
-        pid_t pid;
-        int status;
-        pid = fork();
-        // print the output of the command to the file
-        if (pid == 0)
-        {
-            // redirect the output to the file
-            dup2(fileno(pFile), 1);
-            if (execvp(newTokens[1], newTokens+1) < 0)
-            {
-                printf("Error executing command\n");
-                return -1;
-            }
-        }
-        else if (pid < 0)
-        {
-            // error forking
-            printf("Error forking\n");
-            return -1;
-        }
-        else
-        {
-            // parent process
+        if( background == 0){
             while (wait(&status) != pid);
             printf("Child process with id %d terminated\n", pid);
+            return 1;
         }
-
+        else{
+            printf("Child process with id %d running in background\n", pid);
+        }
     }
 }
-
-
-int runBackground(char *tokens[]){
-    printf("Running in background\n");
-    return 1;
-}
-
+    
 
 int commandHandler(char *tokens[])
 {
-    int idx = 0;
-    // get the number of tokens
-    while (tokens[idx] != NULL)
-    {
-        idx++;
-    }
-    // check if the command have > in it
-    // The error is in this for loop
-    for (int i = 0; i < idx; i++)
-    {
-        if (strcmp(tokens[i], ">") == 0)
-        {
-            export(tokens);
-            return 1;
-        }
-        if (strcmp(tokens[i], "&") == 0)
-        {
-            runBackground(tokens);
-            return 1;
-        }
-    }
-    // check if the command is cd
     if (strcmp(tokens[0], "cd") == 0)
     {
         changeDirectory(tokens);
@@ -223,7 +188,7 @@ int commandHandler(char *tokens[])
     // check if the command is globalusage
     else if (strcmp(tokens[0], "globalusage") == 0)
     {
-        globalUsage();
+        globalUsage(tokens);
     }
     // if none of the above, then the command is not found
     else
@@ -231,6 +196,7 @@ int commandHandler(char *tokens[])
         printf("Command not found\n");
     }
 }
+
 
 int main()
 {
@@ -276,11 +242,5 @@ int main()
         while ((tokens[numTokens] = strtok(NULL, " \n\t")) != NULL)
             numTokens++;
         commandHandler(tokens);
-        //     int i;
-        //     for(i = 0; i < numTokens; i++){
-
-        //         printf("token %d: %s\n", i,tokens[i]);
-
-        // }
     }
 }
