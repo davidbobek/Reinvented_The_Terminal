@@ -12,16 +12,21 @@
 #define LIMIT 256 // max number of tokens for a command
 #define MAXLINE 1024
 #define TRUE 1
+#define MAX_PROCESSES 100
+
+typedef struct process{
+    int pid;
+    char *name;
+} process;
 
 
-int changeDirectory(char *args[])
+void changeDirectory(char *args[])
 {
     // If we write no path (only 'cd'), then go to the home directory
     if (args[1] == NULL)
     {
         chdir(getenv("HOME"));
         printf("Changed to home directory\n");
-        return 1;
     }
     // Else we change the directory to the one specified by the
     // argument, if possible
@@ -30,38 +35,51 @@ int changeDirectory(char *args[])
         if (chdir(args[1]) != 0)
         {
             printf("No such directory\n");
-            return -1;
         }
         else
         {
             printf("Changed to directory %s\n", args[1]);
-            return 1;
         }
     }
 }
 
 
-int quit()
+void quit(process* processes[])
 {
-    // print the running processes
-    // ask the user if he wants to kill them
-    // if yes, kill them
-    // if no, do nothing
-    // exit the program
-    printf("Do you want to kill the running processes? (y/n)\n");
-    char answer;
-    scanf("%c", &answer);
-    if (answer == 'y')
+    int i = 0;
+    // check if there are any running processes
+    while (processes[i] != NULL)
+    {
+        i++;
+    }
+    if (i == 0)
     {
         exit(0);
     }
-    else{
-        return 1;
+    // if there are running processes, then print them
+    printf("There are %d running processes:\n", i);
+    int j = 0;
+    for (j = 0; j < i; j++)
+    {
+        printf("%d %s\n", processes[j]->pid, processes[j]->name);
+    }
+
+    printf("Do you want to kill the running processes? (y/n)\n");
+    char answer[2];
+    scanf("%s", answer);
+    // if the answer is yes, then kill the processes
+    if (strcmp(answer, "y") == 0)
+    {
+        for (j = 0; j < i; j++)
+        {
+            kill(processes[j]->pid, SIGKILL);
+        }
+        exit(0);
     }
 }
 
 
-int globalUsage(char *tokens[])
+void globalUsage(char *tokens[])
 {
     int idx = 0;
     // count the number of tokens
@@ -72,7 +90,6 @@ int globalUsage(char *tokens[])
     if (idx == 1)
     {
         printf("IMCSH Version 1.1 created by Bertold Vinze, David Bobek and Dinu Scripnic\n");
-        return 1;
     }
     // check if token 2 is >
     else if (strcmp(tokens[1], ">") == 0)
@@ -84,23 +101,20 @@ int globalUsage(char *tokens[])
         if (pFile == NULL)
         {
             printf("Something went wrong\n");
-            return -1;
         }
         // if the command is globalusage, then write the text to the file
         fprintf(pFile, "IMCSH Version 1.1 created by Bertold Vinze, David Bobek and Dinu Scripnic\n");
         fclose(pFile);
-        return 1;
     }
     else
     {
         printf("Something went wrong\n");
-        return -1;
     }
     
 }
 
 
-int executeFunction(char *tokens[])
+void executeFunction(char *tokens[], process* processes[])
 {
     int idx = 0;
     FILE *pFile = NULL;
@@ -109,13 +123,11 @@ int executeFunction(char *tokens[])
     while (tokens[idx] != NULL){
         idx++;
     }
-    printf("idx = %d\n", idx);
     if (strcmp(tokens[idx - 1], "&") == 0)
     {
         background = 1;
         idx--;
     }
-    printf("idx = %d\n", idx);
     char *newTokens[idx];
     int i = 0;
     // copy the tokens to the new array
@@ -128,7 +140,6 @@ int executeFunction(char *tokens[])
             if (pFile == NULL)
             {
                 printf("Something went wrong\n");
-                return -1;
             }
             break;
         }
@@ -147,30 +158,36 @@ int executeFunction(char *tokens[])
         if (execvp(newTokens[1], newTokens+1) < 0)
         {
             printf("Error executing command\n");
-            return -1;
         }
     }
     else if (pid < 0)
     {
         // error forking
         printf("Error forking\n");
-        return -1;
     }
     else
     {
         if( background == 0){
             while (wait(&status) != pid);
             printf("Child process with id %d terminated\n", pid);
-            return 1;
         }
         else{
+            // add the pid to the background processes array
+            int i = 0;
+            while (processes[i] != NULL)
+            {
+                i++;
+            }
+            processes[i] = (process*)malloc(sizeof(process));
+            processes[i]->pid = pid;
+            processes[i]->name = newTokens[1];
             printf("Child process with id %d running in background\n", pid);
         }
     }
 }
     
 
-int commandHandler(char *tokens[])
+void commandHandler(char *tokens[],process *processes[])
 {
     if (strcmp(tokens[0], "cd") == 0)
     {
@@ -179,12 +196,12 @@ int commandHandler(char *tokens[])
     // check if the command is quit
     else if (strcmp(tokens[0], "quit") == 0)
     {
-        quit();
+        quit(processes);
     }
     // check if the command is exec
     else if (strcmp(tokens[0], "exec") == 0)
     {
-        executeFunction(tokens);
+        executeFunction(tokens,processes);
     }
     // check if the command is globalusage
     else if (strcmp(tokens[0], "globalusage") == 0)
@@ -206,6 +223,14 @@ int main()
     int numTokens;
     int no_reprint_prmpt;
     no_reprint_prmpt = 0; // to prevent the printing of the shell
+
+    // create processes array
+    process *processes[100];
+    int i = 0;
+    for (i = 0; i < 100; i++)
+    {
+        processes[i] = NULL;
+    }
 
     pid_t pid; // after certain methods
     pid = -10; // we initialize pid to an pid that is not possible
@@ -242,6 +267,7 @@ int main()
         numTokens = 1;
         while ((tokens[numTokens] = strtok(NULL, " \n\t")) != NULL)
             numTokens++;
-        commandHandler(tokens);
+        commandHandler(tokens,processes);
     }
+    return 0;
 }
