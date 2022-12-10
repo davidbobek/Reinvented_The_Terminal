@@ -8,19 +8,18 @@
 #include <sys/wait.h>
 #include <signal.h>
 
-
 #define LIMIT 256 // max number of tokens for a command
 #define MAXLINE 1024
 #define TRUE 1
 #define MAX_PROCESSES 100
 
-typedef struct process{
+typedef struct process
+{
     int pid;
     char *name;
 } process;
 
-
-void changeDirectory(char *args[])
+void changeDirectory(char **args)
 {
     // If we write no path (only 'cd'), then go to the home directory
     if (args[1] == NULL)
@@ -43,8 +42,7 @@ void changeDirectory(char *args[])
     }
 }
 
-
-void quit(process* processes[])
+void quit(process **processes)
 {
     int i = 0;
     // check if there are any running processes
@@ -78,12 +76,12 @@ void quit(process* processes[])
     }
 }
 
-
-void globalUsage(char *tokens[])
+void globalUsage(char **tokens)
 {
     int idx = 0;
     // count the number of tokens
-    while (tokens[idx] != NULL){
+    while (tokens[idx] != NULL)
+    {
         idx++;
     }
     // if the length of the tokens is 1, then print the text to the screen
@@ -110,17 +108,16 @@ void globalUsage(char *tokens[])
     {
         printf("Something went wrong\n");
     }
-    
 }
 
-
-void executeFunction(char *tokens[], process* processes[])
+void executeFunction(char **tokens, process **processes)
 {
     int idx = 0;
     FILE *pFile = NULL;
     int background = 0;
     // count the number of tokens
-    while (tokens[idx] != NULL){
+    while (tokens[idx] != NULL)
+    {
         idx++;
     }
     if (strcmp(tokens[idx - 1], "&") == 0)
@@ -145,17 +142,17 @@ void executeFunction(char *tokens[], process* processes[])
         }
     }
     newTokens[i] = NULL;
-    // fork a child process
-    pid_t pid;
+
     int status;
-    pid = fork();
+    // fork a child process
+    pid_t pid = fork();
     if (pid == 0)
-    {   
+    {
         if (pFile != NULL)
         {
             dup2(fileno(pFile), 1);
         }
-        if (execvp(newTokens[1], newTokens+1) < 0)
+        if (execvp(newTokens[1], newTokens + 1) < 0)
         {
             printf("Error executing command\n");
         }
@@ -167,27 +164,29 @@ void executeFunction(char *tokens[], process* processes[])
     }
     else
     {
-        if( background == 0){
-            while (wait(&status) != pid);
+        if (background == 0)
+        {
+            while (wait(&status) != pid)
+                ;
             printf("Child process with id %d terminated\n", pid);
         }
-        else{
+        else
+        {
             // add the pid to the background processes array
             int i = 0;
             while (processes[i] != NULL)
             {
                 i++;
             }
-            processes[i] = (process*)malloc(sizeof(process));
+            processes[i] = (process *)malloc(sizeof(process));
             processes[i]->pid = pid;
             processes[i]->name = newTokens[1];
             printf("Child process with id %d running in background\n", pid);
         }
     }
 }
-    
 
-void commandHandler(char *tokens[],process *processes[])
+void commandHandler(char **tokens, process **processes)
 {
     if (strcmp(tokens[0], "cd") == 0)
     {
@@ -201,7 +200,7 @@ void commandHandler(char *tokens[],process *processes[])
     // check if the command is exec
     else if (strcmp(tokens[0], "exec") == 0)
     {
-        executeFunction(tokens,processes);
+        executeFunction(tokens, processes);
     }
     // check if the command is globalusage
     else if (strcmp(tokens[0], "globalusage") == 0)
@@ -215,25 +214,19 @@ void commandHandler(char *tokens[],process *processes[])
     }
 }
 
-
 int main()
 {
     char line[MAXLINE];  // buffer for the user input
     char *tokens[LIMIT]; // array for the different tokens in the command
     int numTokens;
-    int no_reprint_prmpt;
-    no_reprint_prmpt = 0; // to prevent the printing of the shell
 
     // create processes array
     process *processes[100];
-    int i = 0;
-    for (i = 0; i < 100; i++)
+
+    for (int i = 0; i < 100; i++)
     {
         processes[i] = NULL;
     }
-
-    pid_t pid; // after certain methods
-    pid = -10; // we initialize pid to an pid that is not possible
 
     // We set our extern char** environ to the environment, so that
     // we can treat it later in other methods
@@ -250,7 +243,6 @@ int main()
     {
         // We print the shell prompt if necessary
         fputs("IMCSH> ", stdout);
-        no_reprint_prmpt = 0;
 
         // We empty the line buffer
         memset(line, '\0', MAXLINE);
@@ -267,7 +259,8 @@ int main()
         numTokens = 1;
         while ((tokens[numTokens] = strtok(NULL, " \n\t")) != NULL)
             numTokens++;
-        commandHandler(tokens,processes);
+        commandHandler(tokens, processes);
     }
+
     return 0;
 }
