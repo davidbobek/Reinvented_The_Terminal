@@ -147,9 +147,9 @@ else{
 ## Contributing
 This project was created as part of the Operating Systems course at IMC FH Krems. Therefore, we do not accept any contributions.
 
-## Authors
-- David Bobek - Matriculation number - Email
-- Dinu Scripnic - Matriculation number - Email
+## Authors  
+- David Bobek - 52107900 - 21imc11014@fh-krems.ac.at
+- Dinu Scripnic - 52104494 - 21imc10070@fh-krems.ac.at
 - Bertold Vinze - 52104496 - 21imc10072@fh-krems.ac.at
 
 
